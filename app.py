@@ -72,6 +72,76 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.markdown(
+    '''
+    <style>
+    .hero-panel {
+        background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(168, 85, 247, 0.18));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 24px;
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+    .hero-panel h1 {
+        margin: 0 0 8px;
+        font-size: 2.7rem;
+    }
+    .hero-panel .lead {
+        margin: 0;
+        color: #d1d5db;
+        font-size: 1.05rem;
+        line-height: 1.6;
+    }
+    .model-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+    .pill-ok { background: #16a34a; color: white; }
+    .pill-muted { background: rgba(148, 163, 184, 0.16); color: #f8fafc; }
+    .pill-note { background: rgba(59, 130, 246, 0.14); color: #e0f2fe; }
+    .status-note {
+        margin-top: 16px;
+        color: #cbd5e1;
+        font-size: 0.95rem;
+    }
+    .section-card {
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        border-radius: 24px;
+        padding: 18px 22px;
+        margin-bottom: 20px;
+    }
+    .summary-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+    }
+    .summary-card {
+        background: rgba(31, 41, 55, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.08);
+        border-radius: 18px;
+        padding: 18px;
+    }
+    .summary-card strong { color: #f8fafc; }
+    .summary-card p { margin: 8px 0 0; color: #94a3b8; }
+    </style>
+    ''',
+    unsafe_allow_html=True,
+)
+
 MODEL_LABELS = {
     "eyes": "Eyes CNN",
     "nose": "Nose CNN",
@@ -141,20 +211,39 @@ def render_verdict_badge(result):
         st.error(f"Could not determine verdict. {result.get('error', '')}")
 
 
+def render_model_status(status):
+    status_items = []
+    for name in ["eyes", "nose", "chin", "ears", "face", "posture"]:
+        label = MODEL_LABELS.get(name, name)
+        if status.get(name):
+            status_items.append(f"<div class='status-pill pill-ok'>{label}</div>")
+        elif name in ("face", "posture"):
+            status_items.append(f"<div class='status-pill pill-muted'>{label} (not bundled)</div>")
+        else:
+            status_items.append(f"<div class='status-pill pill-note'>{label} (optional)</div>")
+    st.markdown("<div class='model-status-grid'>" + "".join(status_items) + "</div>", unsafe_allow_html=True)
+    st.markdown(
+        "<div class='status-note'>Face and posture models are not included in this deployment by default, so they appear as optional capabilities rather than missing models.</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def page_detection():
-    st.title("Deepfake Detection System")
-    st.caption("Multi-model ensemble: face CViT, region CNNs, and posture MLP")
+    st.markdown(
+        "<div class='hero-panel'><h1>Deepfake Detection System</h1><p class='lead'>Upload an image or video to detect real vs fake faces with a hybrid ensemble. If the full ensemble is not available, the HuggingFace demo model delivers instant pretrained inference.</p></div>",
+        unsafe_allow_html=True,
+    )
 
     status = _models_status()
     trained_count = sum(status.values())
     if trained_count == 0:
-        st.info("No trained models found. Use **Detect** with uploaded image, or enable the HuggingFace demo model below.")
+        st.info("No region models are deployed locally. The HuggingFace demo model is the fastest way to get instant results.")
 
     col_demo, col_status = st.columns([1, 2])
     with col_demo:
         demo_mode = st.checkbox("Use HuggingFace demo model", value=False)
     with col_status:
-        st.write("Models on disk:", {k: "✅" if v else "❌" for k, v in status.items()})
+        render_model_status(status)
 
     uploaded = st.file_uploader(
         "Upload a face image or video",
@@ -168,7 +257,7 @@ def page_detection():
             st.video(video_path)
         else:
             image = Image.open(uploaded).convert("RGB")
-            st.image(image, caption="Uploaded image", width="stretch")
+            st.image(image, caption="Uploaded image", use_column_width=True)
 
         if st.button("Detect", type="primary", width="stretch"):
             with st.spinner("Running inference..."):
