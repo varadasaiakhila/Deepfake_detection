@@ -1,3 +1,0 @@
-# Extra deps for local training only (not needed on Streamlit Cloud app)
--r requirements.txt
-kaggle
