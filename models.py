@@ -195,7 +195,9 @@ def cvit_path():
 
 
 def posture_path():
-    return SAVED_DIR / "posture_model.keras"
+    keras_path = SAVED_DIR / "posture_model.keras"
+    h5_path = SAVED_DIR / "posture_model.h5"
+    return keras_path if keras_path.exists() else h5_path
 
 
 def models_available():
