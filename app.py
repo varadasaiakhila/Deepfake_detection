@@ -20,6 +20,23 @@ import seaborn as sns
 import streamlit as st
 from PIL import Image
 
+
+@st.cache_resource
+def load_all_models():
+    """Load and cache all models in memory for fast inference."""
+    models = {}
+    try:
+        from tensorflow.keras.models import load_model
+        models['cnn_eyes'] = load_model('saved_models/cnn_eyes.h5')
+        models['cnn_nose'] = load_model('saved_models/cnn_nose.h5')
+        models['cnn_chin'] = load_model('saved_models/cnn_chin.h5')
+        models['cnn_ears'] = load_model('saved_models/cnn_ears.h5')
+        models['posture'] = load_model('saved_models/posture_model.h5')
+    except:
+        pass
+    return models
+
+
 def _models_status():
     try:
         from models import models_available
@@ -259,7 +276,7 @@ def page_detection():
             st.video(video_path)
         else:
             image = Image.open(uploaded).convert("RGB")
-            st.image(image, caption="Uploaded image", use_column_width=True)
+            st.image(image, caption="Uploaded image", use_container_width=True)
 
         if st.button("Detect", type="primary", width="stretch"):
             with st.spinner("Running inference..."):
