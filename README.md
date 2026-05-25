@@ -146,7 +146,7 @@ Open the URL shown in the terminal (usually http://localhost:8501).
 
 Full ML stack uses `requirements.txt` (no `typing-extensions` pin — avoids TF conflict).
 
-Trained models are gitignored — use **Demo Mode** on Cloud unless you upload weights.
+Trained models are gitignored — use the **HuggingFace demo model** on Cloud unless you upload weights.
 
 Local training:
 

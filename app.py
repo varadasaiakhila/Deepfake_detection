@@ -40,10 +40,10 @@ def _predict_deepfake_video(video_path, demo_mode=False):
     return predict_deepfake_video(video_path, demo_mode=demo_mode)
 
 
-def _predict_demo():
+def _predict_demo(image=None, video_path=None):
     from ensemble import predict_deepfake_demo
 
-    return predict_deepfake_demo()
+    return predict_deepfake_demo(image=image, video_path=video_path)
 
 
 def _is_video_file(uploaded):
@@ -148,11 +148,11 @@ def page_detection():
     status = _models_status()
     trained_count = sum(status.values())
     if trained_count == 0:
-        st.info("No trained models found. Use **Detect** with uploaded image, or **Use Demo Mode** below.")
+        st.info("No trained models found. Use **Detect** with uploaded image, or enable the HuggingFace demo model below.")
 
     col_demo, col_status = st.columns([1, 2])
     with col_demo:
-        demo_mode = st.button("Use Demo Mode", type="secondary", width="stretch")
+        demo_mode = st.checkbox("Use HuggingFace demo model", value=False)
     with col_status:
         st.write("Models on disk:", {k: "✅" if v else "❌" for k, v in status.items()})
 
@@ -171,19 +171,22 @@ def page_detection():
             st.image(image, caption="Uploaded image", width="stretch")
 
         if st.button("Detect", type="primary", width="stretch"):
-            with st.spinner("Running ensemble inference..."):
+            with st.spinner("Running inference..."):
                 if demo_mode:
-                    result = _predict_demo()
+                    if is_video:
+                        result = _predict_demo(video_path=video_path)
+                    else:
+                        result = _predict_demo(image=np.array(image))
                 elif is_video:
                     result = _predict_deepfake_video(video_path, demo_mode=False)
                     if not any(status.values()):
-                        result = _predict_demo()
-                        st.warning("No models trained — showing demo output.")
+                        result = _predict_demo(video_path=video_path)
+                        st.warning("No trained models found — showing HuggingFace demo output.")
                 else:
                     result = _predict_deepfake(np.array(image), demo_mode=False)
                     if not any(status.values()):
-                        result = _predict_demo()
-                        st.warning("No models trained — showing demo output.")
+                        result = _predict_demo(image=np.array(image))
+                        st.warning("No trained models found — showing HuggingFace demo output.")
 
             render_verdict_badge(result)
 
@@ -202,12 +205,7 @@ def page_detection():
                 with st.expander("Raw JSON response"):
                     st.json(result)
     elif demo_mode:
-        result = _predict_demo()
-        render_verdict_badge(result)
-        preds = result.get("model_predictions", {})
-        if preds:
-            st.subheader("Model votes")
-            render_votes_chart(preds)
+        st.info("Upload an image or video to run the HuggingFace demo model.")
 
 
 def page_performance():

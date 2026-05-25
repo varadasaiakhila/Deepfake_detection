@@ -23,6 +23,8 @@ Included in Git: `saved_models/cnn_*.keras` (4 region CNNs).
 
 Not in Git (too large / gitignored): `cvit_face.pth`, `posture_model.keras` — face/posture show ❌ on Cloud unless you add Git LFS or host weights elsewhere.
 
+The app now uses a real HuggingFace pretrained deepfake detection model for demo mode when no trained ensemble weights are available.
+
 ## Redeploy after git push
 
 ```bash

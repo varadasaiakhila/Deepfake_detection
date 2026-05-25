@@ -5,10 +5,12 @@ Works standalone: python ensemble.py <image_path>
 
 import json
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image as PILImage
 
 from models import (
     LABEL_FAKE,
@@ -77,6 +79,74 @@ def _model_vote_weight(name):
 
 def _verdict_from_label(idx):
     return "FAKE" if idx == LABEL_FAKE else "REAL"
+
+
+HF_MODEL_ID = "dima806/deepfake_vs_real_image_detection"
+
+
+@lru_cache(maxsize=1)
+def _hf_classifier():
+    try:
+        from transformers import pipeline
+
+        return pipeline("image-classification", model=HF_MODEL_ID, device=-1)
+    except Exception:
+        return None
+
+
+def _normalize_hf_label(label):
+    label = str(label).strip().lower()
+    if "fake" in label:
+        return "FAKE"
+    if "real" in label:
+        return "REAL"
+    return "REAL"
+
+
+def _predict_hf_image(image):
+    classifier = _hf_classifier()
+    if classifier is None:
+        return None
+
+    if isinstance(image, str):
+        image = PILImage.open(image).convert("RGB")
+    elif isinstance(image, np.ndarray):
+        image = PILImage.fromarray(image.astype("uint8"))
+    elif hasattr(image, "read"):
+        image = PILImage.open(image).convert("RGB")
+
+    try:
+        output = classifier(image, top_k=1)
+        if not output:
+            return None
+        top = output[0]
+        label = _normalize_hf_label(top.get("label", ""))
+        confidence = float(top.get("score", 0.0)) * 100.0
+        return {
+            "verdict": label,
+            "confidence": round(confidence, 1),
+            "model_predictions": {"huggingface": label},
+            "flagged_regions": ["huggingface"] if label == "FAKE" else [],
+            "demo_mode": True,
+            "message": f"HuggingFace pretrained model {HF_MODEL_ID} used for demo.",
+        }
+    except Exception:
+        return None
+
+
+def _predict_hf_video(video_path):
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        return None
+
+    try:
+        ret, frame = cap.read()
+        if not ret:
+            return None
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        return _predict_hf_image(rgb)
+    finally:
+        cap.release()
 
 
 def _demo_prediction():
@@ -337,7 +407,17 @@ def predict_deepfake_video(video_path, demo_mode=False, max_frames=8):
     }
 
 
-def predict_deepfake_demo():
+def predict_deepfake_demo(image=None, video_path=None):
+    if image is not None:
+        demo = _predict_hf_image(image)
+        if demo is not None:
+            return demo
+
+    if video_path is not None:
+        demo = _predict_hf_video(video_path)
+        if demo is not None:
+            return demo
+
     return _demo_prediction()
 
 
